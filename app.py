@@ -1,46 +1,34 @@
-import altair as alt
-from altair.vegalite.v4.schema.channels import Color, Order
-from altair.vegalite.v4.schema.core import Align, Baseline
-from attr import define
-from matplotlib import scale
-from numpy.testing._private.utils import print_assert_equal
-from pandas.io import excel
-from pandas.tseries.offsets import BQuarterBegin
-from seaborn.rcmod import set_theme
+
+from pandas.core.tools.datetimes import to_datetime
 import streamlit as st
-from streamlit.elements.arrow_altair import ChartType
-import sys
-import os
-import re
-import csv
 import pandas as pd
-import numpy as np
-#import matplotlib.pyplot as plt
-#import seaborn as sns
-import pickle
-from PIL import Image
+import requests
+import json
+from st_radial import st_radial
 import plotly.graph_objects as go
-from urllib.error import URLError
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem.snowball import SnowballStemmer
-from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-from sklearn.metrics import accuracy_score
-from sklearn.multiclass import OneVsRestClassifier
-from IPython.display import Markdown, display
-import pickle
-import warnings
-import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
+from datetime import date, timedelta
+
+#from datetime import datetime
+
+from htbuilder import HtmlElement, div, ul, li, br, hr, a, p, img, styles, classes, fonts
+from htbuilder.units import percent, px
+from htbuilder.funcs import rgba, rgb
+from streamlit.elements.utils import clean_text
 
 
-nltk.download('stopwords')
+###############################################################################################################################
+###############################################################################################################################
 
-#st.set_page_config(layout="wide")
+###### set config of the page
+
+st.set_page_config(
+    page_title="Mining Stake",
+    page_icon="💰",
+    layout="wide",
+    initial_sidebar_state="expanded")
+
+#### hide menu and streamlit footer
 
 hide_streamlit_style = """
             <style>
@@ -50,503 +38,516 @@ hide_streamlit_style = """
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True) 
 
+##### get data function
+
+def get_data(link, colname1, colname2):
+
+    response = requests.get(link)
+    data = json.loads(response.text)
+    data = data["values"]
+    data_name = pd.DataFrame.from_dict(data)
+    data_name['x'] = pd.to_datetime(data_name['x'], unit='s')
+    data_name = data_name.sort_values(by = "x", ascending = False ) 
+    data_name.columns = [colname1, colname2]
+
+    return data_name
+
+#start = date.today() - timedelta(days=14)
+#end = date.today() 
+###### load data function
+
+def load_data(start, end):
+
+    period = round((end - start).days/7)
+
+    ### total fees in USD
+    fees = "https://api.blockchain.info/charts/transaction-fees-usd?timespan="+str(period)+"weeks&rollingAverage=8hours&format=json"  
+    fees_data = get_data(fees, "date", "fee_USD")
+
+    ### fees in BTC
+    fees_btc = "https://api.blockchain.info/charts/transaction-fees?timespan="+str(period)+"weeks&rollingAverage=8hours&format=json"
+    fees_btc_data = get_data(fees_btc, "date", "fee_BTC")
+
+    #### difficulty 
+    difficulty = "https://api.blockchain.info/charts/difficulty?timespan="+str(period)+"weeks&rollingAverage=8hours&format=json"
+    difficulty_data = get_data(difficulty, "date", "difficulty")
+
+    #### exchange rate
+    price = "https://api.blockchain.info/charts/market-price?timespan="+str(period)+"weeks&rollingAverage=8hours&format=json"
+    price_data = get_data(price, "date", "price")
+
+    ### joining data
+    result = pd.merge(price_data, difficulty_data, on = "date")
+    result = pd.merge(result, fees_btc_data, on = "date")
+    result = pd.merge(result, fees_data, on = "date")
+
+    ####  mutating columns
+    result["date"] = result["date"].dt.date
+    result["date"] = result["date"].apply(lambda x: x.strftime('%d/%m/%Y'))
+    result["price"] = result["price"].apply(lambda x: int(x))
+    result["difficulty"] = result["difficulty"].apply(lambda x: int(x))
+    result["fee_USD"] = result["fee_USD"].apply(lambda x: int(x))
+    result["fee_BTC"] = result["fee_BTC"].apply(lambda x: round(x,3))
+
+    return result
+
+
+#######  authentication function
+
+def is_authenticated(password):
+    return password == "1"
+
+def is_authenticated_user(user):
+    return user == "a"
+
+def generate_login_block():
+    block1 = st.sidebar.empty()
+    block2 = st.sidebar.empty()
+    block3 = st.sidebar.empty()
+
+    return block1, block2, block3
+
+def clean_blocks(blocks):
+    for block in blocks:
+        block.empty()
+
+def login(blocks):
+    blocks[0].markdown("""
+            <style>
+                input {
+                    -webkit-text-security: disc;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+
+    return blocks[1].text_input('Username'), blocks[2].text_input('Password')
+
+page = ""
+
+##### creating the sidebar
+
+st.sidebar.title("Welcome to Mining Stake")
+
+def main():
+    page = st.sidebar.selectbox("Select a page", ["Home", "Statistics", "Mining Calculator"])
+
+    if page == "":
+        st.subheader("Please Log in")
+        st.write("Enter your user name and passwor in the lateral bar in order to enter to the system")
+        "------"
+
+###############################################################################################################################
+###############################################################################################################################
+
+    if page == "Home":
+
+        st.title("Let's know more about our business")
+
+        st.header("")
+
+        st.image("image_1.jpg", use_column_width=True)
+
+        st.header("What do we do?")
+
+        st.write("Our goal is to the dilever a quality service to our customers, we invite you to know more about our business model")
+
+        #st.markdown("[![Follow](<https://img.shields.io/twitter/follow/><laloaldea>?style=social)](<https://www.twitter.com/><laloaldea>)", unsafe_allow_html=True)
+
+        col0, col1, col2, col3, col4 = st.columns([1,4,4,4,1])
+        ""
+
+        with col0:
+            ""
+
+        with col1: 
+            st.write("  Our suppliers")
+            st.image("bitcoin.jpeg")
+            ""
+            st.write("Tenemos un up-time del 99%")
+            st_radial("up-time", 99,  start_angle=0, end_angle=355)
+
+        with col2: 
+            st.write("How we add value")
+            st.image("bitcoin.jpeg")
+        
+        with col3: 
+            st.write("Your advantages")
+            st.image("bitcoin.jpeg")
+
+        with col4:
+            ""
+
+
+###############################################################################################################################
+###############################################################################################################################
+
+
+    if page == "Statistics":
+
+        st.title("Welcome to our Statistics dashboard")
+
+        st.write("In this page you can see both, last day and historical statistics about BitCoin")
+
+        ""
+
+        st.subheader("See hitorical statistics")
+
+        ""
+
+        with st.expander("Show hitorical statistics"):
+
+            st.subheader("Select a range of dates")
+
+            ""
+
+            "Please, select a range of dates in order to get updated bitcoin information."
+
+            ""
+
+            min_date = date.today() - timedelta(days=14)
+            today = date.today() 
+
+            col1, col2, col3, col4 = st.columns([1,3,3,1])
+
+            with col1:
+                ""
+            
+            with col2:
+            
+                start = st.date_input("Start date", value=min_date, max_value=min_date)
+
+            with col3:
+            
+                end = st.date_input("End date", value=today, min_value=today, max_value=today)
+            
+            with col4:
+                ""
+                ""
+                #st.button("🔄")
+            "--------"
+
+            ###### Variables for indicators
+
+            result = load_data(start, end)
+
+            actual_price = int(result.iloc[1,1:2])
+            last_price = int(result.iloc[-1,1:2])
+
+            actual_difficulty = int(result.iloc[0,2:3])
+            last_difficulty = int(result.iloc[-1,2:3])
+
+            last_fee_bt_0 = float(result.iloc[0,3:4])
+            last_fee_bt_1 = float(result.iloc[-1,3:4])
+
+            last_fee_0 = int(result.iloc[0,4:5])
+            last_fee_1 = int(result.iloc[-1,4:5])
+
+
+            st.subheader("Key Indicator for the selected period data")
+
+            ###### historical metrics 
+
+            st.write("Calculating the key metrics for the period starting on ", start , "till ", end)
+
+            ""
+
+            col0, col1, col2, col3 = st.columns([2.5,3,3,1])
+
+            with col0:
+                ""
+            with col1:
+                st.metric("USD price variation: ", format(actual_price, ",d"), delta= format(actual_price - last_price, ",d"))
+                ""
+                st.metric("Fee variation in USD: ", format(last_fee_0, ",d"), delta= format(last_fee_0 - last_fee_1, ",d"))
+
+            with col2:
+                st.metric("Network difficulty: ", format(actual_difficulty, ".2e"), delta= format(actual_difficulty - last_difficulty, ".2e"))
+                ""
+                st.metric("Fee variation in BTC: ", last_fee_bt_0 , delta= last_fee_bt_0 - last_fee_bt_1)
+
+            with col3:
+                ""
+
+            #st.dataframe(result, height= 1000, width=1000)
+
+            "------"
+
+            #### last day metrics plots show
+            
+            plot = result.sort_index(ascending=False)
+            plot = plot.reset_index()
+
+            st.subheader("Historical plots")
+
+            st.write("Please, select a variable to visualize the historical information")
+
+            selected = st.selectbox("Select the variable",["price", "difficulty", "fee_BTC", "fee_USD"])
+
+            ""
+
+            fig = go.Figure([go.Line(x=plot['date'], y=plot[selected])])
+
+            fig.update_xaxes(
+                rangeslider_visible = True)
+
+            
+            fig.update_layout(height=500, margin=dict(l=10, r=10, b=10, t=10))
+
+            st.plotly_chart(fig,use_container_width=True, config= {'displayModeBar': False})    
+
+            ###### historical data table
+
+            fig = go.Figure(data=[go.Table(
+
+                columnorder = [1,2,3,4,5],
+
+                columnwidth = [800,800,800,800,800],
+
+                header=dict(values=list(result.columns),
+                    fill_color='paleturquoise',
+                    align='center',
+                    font_size = 20,
+                    height = 40),
+
+                cells=dict(values=[result.date, 
+                    result.price.apply(lambda x: format(int(x),",d")), 
+                    result.difficulty.apply(lambda x: format(int(x),",d")), 
+                    result.fee_BTC, 
+                    result.fee_USD.apply(lambda x: format(int(x),",d"))],
+                    fill_color='lavender',
+                    align='center',
+                    font_size = 15,
+                    height = 30)
+                    )
+            ])
+            #### historical data table show 
+            
+            "------"
+
+            st.subheader("Historical data")
+
+            st.write("Showing the data for the period selected above")
+
+            ""
+
+            fig.update_layout(height=400, margin=dict(l=10, r=10, b=10, t=10))
+
+            st.plotly_chart(fig, use_container_width=True, config= {'displayModeBar': False})
 
 
 
-## load data 
-@st.cache
-def load_data_raw(nrows):
-    data = pd.read_excel("scopus_final_es_ml.xlsx", index_col = 0, nrows=nrows)
-    return data
-    #test_data = pd.read_excel("test_data.xlsx")
+        ### last data available table
 
-def load_data_chart(nrows):
-    data = pd.read_excel("chart.xlsx", nrows=nrows)
-    return data
+        "----"
 
-def load_data_sample(nrows):
-    data = pd.read_excel("Sample.xlsx", index_col=0, nrows=nrows)
-    return data
+        st.subheader("See last day statistics")
 
-def load_data_accuracy(nrows):
-    data = pd.read_excel("accuracy.xlsx", nrows=nrows)
-    return data
+        ""
 
-# load datasets
-data_raw = load_data_raw(15000)
-data_chart = load_data_chart(16)
-sample_data = load_data_sample(10)
-accuracy = load_data_accuracy(20)
+        with st.expander("Show last day statistics"):
+
+            ###### current block reward value
+
+            st.subheader("Current Block Reward")
+
+            reward = "https://blockchain.info/q/bcperblock"
+
+            response = requests.get(reward)
+
+            last_reward = json.loads(response.text)
+
+            st.write("The current block reaward is ", str(last_reward), "BitCoins per mined Block")
+
+            "----"
+                
+            #### last day metrics
+
+            actual_price = int(result.iloc[1,1:2])
+            last_price = int(result.iloc[2,1:2])
+
+            actual_difficulty = int(result.iloc[0,2:3])
+            last_difficulty = int(result.iloc[1,2:3])
+
+            last_fee_bt_0 = float(result.iloc[0,3:4])
+            last_fee_bt_1 = float(result.iloc[1,3:4])
+
+            last_fee_0 = int(result.iloc[2,4:5])
+            last_fee_1 = int(result.iloc[1,4:5])
+
+            st.subheader("Key Indicators for the last day")
+
+            ###### historical metrics 
+
+            st.write("Calculating the variation of the key metrics during the last day")
+            ""
+
+            col0, col1, col2, col3 = st.columns([2.5,3,3,1])
+
+            with col0:
+                ""
+            with col1:
+                st.metric("USD price variation: ", format(actual_price, ",d"), delta= format(actual_price - last_price, ",d"))
+                ""
+                st.metric("Fee variation in USD: ", format(last_fee_0, ",d"), delta= format(last_fee_0 - last_fee_1, ",d"))
+
+            with col2:
+                st.metric("Network difficulty: ", format(actual_difficulty, ".2e"), delta= format(actual_difficulty - last_difficulty, ".2e"))
+                ""
+                st.metric("Fee variation in BTC: ", round(last_fee_bt_0, 2), delta= round(last_fee_bt_0 - last_fee_bt_1, 2))
+
+            with col3:
+                ""
+            "------"
+            #### last day metrics table show
+
+            fig = go.Figure(data=[go.Table(
+
+            columnorder = [1,2,3,4,5],
+
+            columnwidth = [800,800,800,800,800],
+
+            header=dict(values=list(result.columns),
+                fill_color='paleturquoise',
+                align='center',
+                font_size = 20,
+                height = 40),
+
+            cells=dict(values=[result.date.iloc[0], 
+                format(result.price.iloc[0], ",d"), 
+                format(result.difficulty.iloc[0], ",d"), 
+                result.fee_BTC.iloc[0], 
+                format(result.fee_USD.iloc[0], ",d")],
+                fill_color='lavender',
+                align='center',
+                font_size = 15,
+                height = 30)
+                )
+            ])
+
+            st.subheader("Last day information")
+
+            st.write("The information for the las day in presented below")
+            ""
+
+            fig.update_layout(height=100, margin=dict(l=10, r=10, b=10, t=10))
+
+            st.plotly_chart(fig, use_container_width=True, config= {'displayModeBar': False})
+
+
+        #fig = go.Bar(x= result.date ,y=result.price, showlegend = True)
+        ""
+
+        
+        
+####################################################################################################################################
+###############################################################################################################################
+
+    if page == "Mining Calculator":
+
+        st.subheader("Welcome to the mining calculator")
+        st.write("Select the values that you would like to purchase in order to proyect your costs and earnings")
+        ""
+
+        start = date.today() - timedelta(days=14)
+        end = date.today() 
+
+        result = load_data(start, end) #result table
+
+        ### Admins Variables Zone
+
+        trlln = 1000000000000
+        secperday = 86400
+        constant = 2**32
+
+        last_difficulty = int(result.iloc[0,2:3]) #result table
+        last_fee = float(result.iloc[0,3:4]) #result table
+
+        ####### getting last reward
+
+        reward = "https://blockchain.info/q/bcperblock"
+
+        response = requests.get(reward)
+
+        last_reward = json.loads(response.text)
+
+        ##### calculator
+
+        with st.form(key = "inputs" ):
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                device = st.number_input("Quantity of devices working", step = 1, value = 1)
+                hr = st.number_input("Average hash rate of the devices (Th/s)", step = 1, value = 81)
+
+            with col2:
+                power = st.number_input("Device power in Watts", step = 1, value = 3450)
+                elect = st.number_input("Electricity cost in USD", step = 0.001, value = 0.033)
+
+            uptime = st.slider('Uptime of the machines',min_value=0, max_value=100, value = 99)  
+
+            if st.form_submit_button("Calculate the values"):
+
+                ""
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+
+                    mined = (device*hr*trlln*secperday*(last_reward + last_fee/(24*6))/(last_difficulty*constant*99/100))
+
+                    st.success("Projected BTC mined")
+
+                    st.subheader(round(mined, 5))
+                
+                with col2: 
+                    mined_usd = mined*int(result.iloc[0,1:2])
+
+                    st.success("Equivalent to USD")
+
+                    st.subheader(round(mined_usd,2))
+                    ""
+
+                col1, col2 = st.columns(2)
+
+                with col1: 
+                    cost_bc = ((device*(power/1000)*24*elect) + (mined_usd - (device*(power/1000)*24*elect))*0.2)
+
+                    st.success("Mining Hotel Monthly Cost")
+                    
+                    st.subheader(round(cost_bc,2))
+                    ""
+
+                with col2:
+                    service_fee = device*(power/1000)*24*0.097
+
+                    st.success("Service Administration Fee")
+
+                    st.subheader(round(service_fee,2))
+
+                earnings = (mined_usd - cost_bc - service_fee)
+
+                st.success("Your average monthly earings will be:")
+                st.subheader(round(earnings,2))
 
 
 
-st.sidebar.header("Bienvenido al Clasificador de ODS")
+login_blocks = generate_login_block()
 
-st.sidebar.image("SDG.png")
+user, password  = login(login_blocks)
 
-
-# Create a page dropdown 
-page = st.sidebar.selectbox("Seleccion una Página", ["Información de Muestra", "Clasificar un Texto", "Clasificar un Archivo Excel"]) 
-
-
-
-
-if page == "Información de Muestra":
-
-    st.header("Información de Muestra de los ODS")
-
-    st.subheader("En esta sección encontrarás información relevante acerca de la muestra de artículos y publicaciones cientificas que estamos usando como referencia para la clasificación de textos")
-    #if st.checkbox("Show SDG data"):
-        #st.subheader("SDG Sample Data")
-
-    st.write("")
-
-    st.write("La base de datos de artículos usados como referencia para la clasificación de los ODS está en constante crecimiento, ya contamos con mas de 11.000 artículos incluidos y una efectividad promedio en la clasificación de los textos superior al 92%")
+if is_authenticated(password) and is_authenticated_user(user):
     
-    st.write("")
+    clean_blocks(login_blocks)
+    main()
 
-    col0, col1, col2, col3 = st.columns(4)
+elif password:
+    st.info("Please enter a valid user or password")
 
-    col1.metric("Efectividad Promedio: ", "93,2%", delta= "3,2 puntos superior")
-    col2.metric("Total de Artículos: ", 11.195, delta= "8.071 articulos nuevos")
 
-    st.write("")
-    st.write("")
 
 
-    st.subheader("Efectividad individual de clasificación de los ODS")
 
-    #### radar chart
 
-
-    r = accuracy["accuracy"]
-    theta = accuracy["Objetivo"]
-
-    import plotly.graph_objects as go
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatterpolar(
-        r = r,
-        theta = theta,
-        fill='toself',
-        name='ODS efectividad de clasificación'
-    ))
-    
-
-    fig.update_layout(
-    polar=dict(
-        radialaxis=dict(
-        visible=True,
-        range=[0, 1]
-        )),
-    showlegend=False
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    ##### bar chart
-
-    st.write("")
-    st.subheader("Cantidad de textos clasificados por cada ODS")
-    st.write("")
-    st.write("La cantidad de textos que han sido clasificados por cada ODS hasta el momento se muestran en el siguiente gráfico:")
-    st.write("")
-    
-
-    sns.set(font_scale = 1)
-
-    categories = pd.DataFrame(data_raw.columns.values)[1:18]
-    categories = categories.reset_index(drop = True)
-
-    val = pd.DataFrame(data_raw.iloc[:,1:18].sum())
-    val = val.reset_index(drop = True)
-
-    p = pd.concat([categories, val], axis = 1)
-
-    p = p.set_axis(['category', 'value'], axis=1, inplace=False)
-
-    gra, ax = plt.subplots(figsize=(15, 10)) 
-
-    ax = sns.barplot(p["category"], p["value"], color="m")
-
-    rects = ax.patches
-    labels = p["value"]
-    for rect, label in zip(rects, labels):
-        height = rect.get_height()
-        ax.text(rect.get_x() + rect.get_width()/2, height + 5, label, ha='center', va='bottom', fontsize=8)
-
-    plt.ylabel('Cantidad de Artículos', fontsize=15)
-    plt.xlabel('Número del ODS', fontsize=15)
-    
-
-    st.pyplot(gra)
-    
-    #c = alt.Chart(p).mark_bar().encode(alt.X("category", 
-    #sort= ["goal_1" ,"goal_2" ,"goal_3" ,"goal_4" ,"goal_5" ,"goal_6" ,
-    #"goal_7" ,"goal_8" ,"goal_9" ,"goal_10","goal_11","goal_12","goal_13",
-    #"goal_14","goal_15","goal_16"]), 
-    #y = "value").properties(width = "container", height = 600)
-
-
-    #st.altair_chart(c, use_container_width=True)
-
-
-
-    def color_SDG(val):
-        if val == "Yes":
-            color = 'green'
-        else:
-            color = ''
-        return f'background-color: {color}'
-
-    st.subheader("Ejemplo del resultado al clasificar una serie de textos")
-    st.write("")
-    st.write("Al clasificar un archivo excel que contenga la serie de textos a clasificar, esta herramienta arrojará como resultado una tabla que contendrá 'Yes' o 'No' como indicador de si es que el texto ha logrado ser mapeado a alguno de los ODS, como se muestra en el siguiente ejemplo:")
-    st.write("")
-    st.dataframe(sample_data.T.style.applymap(color_SDG), height= 3000)
-
-
-
-
-
-if page == "Clasificar un Texto":
-    
-    st.title("Clasificar un Texto en Relación a los ODS")
-
-    st.subheader("Utilizando un Párrafo")
-
-    #  input for the model
-
-    xtest = st.text_area("Clasificar", "Clasifica un texto asociado a los ODS")
-
-    new = {"text": [xtest]}
-
-    test_data = pd.DataFrame(new)
-
-    # model itself
-
-    categories = list(data_raw.columns.values)[1:17]
-    print(categories)
-
-    data = data_raw
-
-    if not sys.warnoptions:
-        warnings.simplefilter("ignore")
-
-    def cleanHtml(sentence):
-        cleanr = re.compile('<.*?>')
-        cleantext = re.sub(cleanr, ' ', str(sentence))
-        return cleantext
-
-    def cleanPunc(sentence): #function to clean the word of any punctuation or special characters
-        cleaned = re.sub(r'[?|!|\'|"|#]',r'',sentence)
-        cleaned = re.sub(r'[.|,|)|(|\|/]',r' ',cleaned)
-        cleaned = cleaned.strip()
-        cleaned = cleaned.replace("\n"," ")
-        return cleaned
-
-    def keepAlpha(sentence):
-        alpha_sent = ""
-        for word in sentence.split():
-            alpha_word = re.sub('[^a-z A-Z]+', ' ', word)
-            alpha_sent += alpha_word
-            alpha_sent += " "
-        alpha_sent = alpha_sent.strip()
-        return alpha_sent
-
-    test_data['text'] = test_data['text'].str.lower()
-    test_data['text'] = test_data['text'].apply(cleanHtml)
-    test_data['text'] = test_data['text'].apply(cleanPunc)
-    test_data['text'] = test_data['text'].apply(keepAlpha)
-
-    #Removing stop words
-
-    stop_words = set(stopwords.words('spanish'))
-    stop_words.update(['cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez', 'poder', 'tambien', 'hasta', 'entre', 'junto', 'sin', 'embargo', 'todavía', 'dentro', 'a', 'ante', 'bajo', 'con', 'contra', 'de', 'desde', 'durante', 'para', 'por', 'sin', 'segun', 'sobre', 'tras'])
-
-    re_stop_words = re.compile(r"\b(" + "|".join(stop_words) + ")\\W", re.I)
-    def removeStopWords(sentence):
-            global re_stop_words
-            return re_stop_words.sub(" ", sentence)
-    test_data['text'] = test_data['text'].apply(removeStopWords)
-
-
-    #Stemming
-
-    stemmer = SnowballStemmer("spanish")
-    def stemming(sentence):
-        stemSentence = ""
-        for word in sentence.split():
-            stem = stemmer.stem(word)
-            stemSentence += stem
-            stemSentence += " "
-        stemSentence = stemSentence.strip()
-        return stemSentence
-
-    test_data['text'] = test_data['text'].apply(stemming)
-    test_data['text'] = test_data['text'].str.lower()
-    test_data['text'] = test_data['text'].apply(cleanHtml)
-    test_data['text'] = test_data['text'].apply(cleanPunc)
-    test_data['text'] = test_data['text'].apply(keepAlpha)
-
-    # test and train data partitioning...
-
-    original_test_data = test_data
-    test = test_data
-    print(test.shape)
-
-    test_text = test['text']
-    print("test")
-    print(test_text)
-
-    # Importing Pickle
-
-    pickle_in = open("tf_idf_vectorizer.pickle","rb")
-    vectorizer = pickle.load(pickle_in)
-    print(len(vectorizer.get_feature_names()))
-
-    x_test = vectorizer.transform(test_text)
-    y_test = test.drop(labels = ['text'], axis=1)
-
-    #Multiple Binary Classifications - (One Vs Rest Classifier)
-
-    def printmd(string):
-        display(Markdown(string))
-
-    # Using pipeline for applying logistic regression and one vs rest classifier
-
-    LogReg_pipeline = Pipeline([
-                    ('clf', OneVsRestClassifier(LogisticRegression(solver='sag'), n_jobs=-1)),
-                ])
-
-    arrs = []
-
-    # Importing Pickle
-
-    pickle_in = open("trained_model_esp.pickle","rb")
-    pipeline_array = pickle.load(pickle_in)
-
-    # Generating predictions
-
-    for index in range(0,len(categories)):
-        printmd('**Processing {} review...**'.format(categories[index]))
-        LogReg_pipeline = pickle.loads(pipeline_array[index])
-        prediction = LogReg_pipeline.predict(x_test)
-        arrs.append(prediction)
-        print("Prediction: ")
-        print(prediction)
-        print("\n")
-
-    # Generating result vector
-
-    output_array = []
-    output_array.append(["text", "goal_1" ,"goal_2" ,"goal_3" ,"goal_4" ,"goal_5" ,"goal_6" ,
-        "goal_7" ,"goal_8" ,"goal_9" ,"goal_10","goal_11","goal_12",
-        "goal_13","goal_14","goal_15","goal_16"])
-
-    test_review = original_test_data["text"].values
-
-    for index in range(0,len(test_review)):
-        row = []
-        row.append(test_review[index])
-        for arr in arrs:
-            row.append(arr[index])
-        output_array.append(row)
-
-    result = pd.DataFrame(output_array)
-
-
-    # Paragraph Classifier
-
-    if st.button("Clasifica el texto"):
-        st.success("Los ODS relacionados con tu texto son:")
-        st.write(result.set_index(result.columns[0]).T, use_container_width=True)
-
-
-
-
-# Model for excel Files
-if page == "Clasificar un Archivo Excel":
-
-    # Model for excel Files
-
-        uploaded_file = st.file_uploader(label="upload here", type="xlsx")
-
-        test_data = pd.read_excel("esp.xlsx")
-
-        if uploaded_file:
-            test_data = pd.read_excel(uploaded_file)
-                #st.dataframe(df)
-                #st.table(df)
-
-
-        data_raw = pd.read_excel("scopus_final_es_ml.xlsx")
-        #test_data = pd.read_excel("SDG_ml.xlsx")
-
-        # test_data = pd.DataFrame(new)
-        print("**Sample data:**")
-        test_data.head()
-
-        categories = list(data_raw.columns.values)[1:18]
-        print(categories)
-
-        #Data Pre-Processing
-
-        import nltk
-        from nltk.corpus import stopwords
-        from nltk.stem.snowball import SnowballStemmer
-        import re
-        import sys
-        import warnings
-
-
-        data = data_raw
-
-        if not sys.warnoptions:
-            warnings.simplefilter("ignore")
-        def cleanHtml(sentence):
-            cleanr = re.compile('<.*?>')
-            cleantext = re.sub(cleanr, ' ', str(sentence))
-            return cleantext
-        def cleanPunc(sentence): #function to clean the word of any punctuation or special characters
-            cleaned = re.sub(r'[?|!|\'|"|#]',r'',sentence)
-            cleaned = re.sub(r'[.|,|)|(|\|/]',r' ',cleaned)
-            cleaned = cleaned.strip()
-            cleaned = cleaned.replace("\n"," ")
-            return cleaned
-        def keepAlpha(sentence):
-            alpha_sent = ""
-            for word in sentence.split():
-                alpha_word = re.sub('[^a-z A-Z]+', ' ', word)
-                alpha_sent += alpha_word
-                alpha_sent += " "
-            alpha_sent = alpha_sent.strip()
-            return alpha_sent
-
-        test_data['text'] = test_data['text'].str.lower()
-        test_data['text'] = test_data['text'].apply(cleanHtml)
-        test_data['text'] = test_data['text'].apply(cleanPunc)
-        test_data['text'] = test_data['text'].apply(keepAlpha)
-
-        #Removing stop words
-        stop_words = set(stopwords.words('spanish'))
-        stop_words.update(['cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez', 'poder', 'tambien', 'hasta', 'entre', 'junto', 'sin', 'embargo', 'todavía', 'dentro', 'a', 'ante', 'bajo', 'con', 'contra', 'de', 'desde', 'durante', 'para', 'por', 'sin', 'segun', 'sobre', 'tras'])
-
-        re_stop_words = re.compile(r"\b(" + "|".join(stop_words) + ")\\W", re.I)
-        def removeStopWords(sentence):
-            global re_stop_words
-            return re_stop_words.sub(" ", sentence)
-        test_data['text'] = test_data['text'].apply(removeStopWords)
-
-
-        #Stemming
-        stemmer = SnowballStemmer("spanish")
-        def stemming(sentence):
-            stemSentence = ""
-            for word in sentence.split():
-                stem = stemmer.stem(word)
-                stemSentence += stem
-                stemSentence += " "
-            stemSentence = stemSentence.strip()
-            return stemSentence
-        test_data['text'] = test_data['text'].apply(stemming)
-
-        test_data['text'] = test_data['text'].str.lower()
-        test_data['text'] = test_data['text'].apply(cleanHtml)
-        test_data['text'] = test_data['text'].apply(cleanPunc)
-        test_data['text'] = test_data['text'].apply(keepAlpha)
-
-
-
-        # test and train data partitioning...
-
-        from sklearn.model_selection import train_test_split
-        original_test_data = test_data
-        test = test_data
-        print(test.shape)
-
-        test_text = test['text']
-        print("test")
-        print(test_text)
-
-
-        from sklearn.feature_extraction.text import TfidfVectorizer
-        import pickle
-
-        pickle_in = open("tf_idf_vectorizer.pickle","rb")
-        vectorizer = pickle.load(pickle_in)
-        print(len(vectorizer.get_feature_names()))
-
-        x_test = vectorizer.transform(test_text)
-        y_test = test.drop(labels = ['text'], axis=1)
-
-
-        #Multiple Binary Classifications - (One Vs Rest Classifier)
-
-        from sklearn.linear_model import LogisticRegression
-        from sklearn.pipeline import Pipeline
-        from sklearn.metrics import accuracy_score
-        from sklearn.multiclass import OneVsRestClassifier
-        from IPython.display import Markdown, display
-        import pickle
-        def printmd(string):
-            display(Markdown(string))
-
-
-        # Using pipeline for applying logistic regression and one vs rest classifier
-        LogReg_pipeline = Pipeline([
-                        ('clf', OneVsRestClassifier(LogisticRegression(solver='sag'), n_jobs=-1)),
-                    ])
-
-        arrs = []
-
-        pickle_in = open("trained_model_esp.pickle","rb")
-        pipeline_array = pickle.load(pickle_in)
-
-        for index in range(0,len(categories)):
-            printmd('**Processing {} review...**'.format(categories[index]))
-            LogReg_pipeline = pickle.loads(pipeline_array[index])
-            prediction = LogReg_pipeline.predict(x_test)
-            arrs.append(prediction)
-            print("Prediction: ")
-            print(prediction)
-            #print('Test accuracy is {}'.format(accuracy_score(test[category], prediction)))
-            print("\n")
-
-        output_array = []
-        output_array.append(["text", "goal_1" ,"goal_2" ,"goal_3" ,"goal_4" ,"goal_5" ,"goal_6" ,
-            "goal_7" ,"goal_8" ,"goal_9" ,"goal_10","goal_11","goal_12",
-            "goal_13","goal_14","goal_15","goal_16", "goal_17"])
-
-        test_review = original_test_data["text"].values
-
-        for index in range(0,len(test_review)):
-            row = []
-            row.append(test_review[index])
-            for arr in arrs:
-                row.append(arr[index])
-            output_array.append(row)
-
-        result = pd.DataFrame(output_array)
-        result.columns = result.iloc[0]
-        result = result[1:]
-
-        result['sum'] = result.iloc[:,1:18].sum(axis = 1)
-        result = result[result["sum"]!= 0]
-        result = result.sort_values(by = ["sum"], ascending = False)
-
-        def color_SDG(val):
-            if val == 1:
-                color = 'green'
-            else:
-                color = ''
-            return f'background-color: {color}'
-
-        # Paragraph Classifier
-
-        if st.button("Classify SDG"):
-            st.success("The SDG related to the text are:")
-            st.write(result.style.applymap(color_SDG))
 
 
